@@ -1,55 +1,44 @@
-use std::io::{ stdin, Read };
+use std::io::{stdin,read_to_string};
+use regex::Regex;
 
-const DATA:&[u8] = b"xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))";
-
-fn part1(mut sc: impl Iterator<Item = u8>) -> i32 {
+fn part1(sc: &str) -> (i32,i32) {
+    let re = Regex::new(r"mul\((\d+),(\d+)\)|(d)o\(\)|(d)on't\(\)").unwrap();
     let mut n1 = 0;
-    let cd = b"mul(01,01)";
-    let mut cx = 0;
-    let mut pb = None;
-    let mut cg = Vec::new();
-    let mut cv = String::new();
-    while let Some(c) = pb.take().or_else(|| sc.next()) {
-        match cd[cx] {
-            b'0' => {
-                if b'0'<=c && c<=b'9' {
-                    cx += 1;
-                    cv.clear();
-                    cv.push(c as char);
-                } else {
-                    cx = 0;
-                    pb = Some(c);
-                }
-            },
-            b'1' => {
-                if b'0'<=c && c<=b'9' {
-                    cv.push(c as char);
-                } else {
-                    cg.push(cv.parse::<i32>().unwrap());
-                    cx += 1;
-                    pb = Some(c);
-                }
-            },
-            _ => {
-                if c == cd[cx] {
-                    if cx == 0 { cg.clear(); }
-                    cx += 1;
-                    if cx == cd.len() {
-                        cx = 0;
-                        n1 += cg[0]*cg[1];
-                    }
-                } else if cx != 0 {
-                    cx = 0;
-                    pb = Some(c);
-                }
-            }
+    let mut n2 = 0;
+    let mut b = true;
+    for m in re.captures_iter(sc) {
+        if m.get(3).is_some() {
+            b = true;
+        } else if m.get(4).is_some() {
+            b = false;
+        } else {
+            let x = m[1].parse::<i32>().unwrap() * m[2].parse::<i32>().unwrap();
+            n1 += x;
+            if b { n2 += x; }
         }
+        
     }
-    n1
+    (n1,n2)
 }
 
 fn main() {
-    let sc = stdin().bytes().map(|c| c.unwrap());
-    let n1 = part1(sc);
-    println!("{n1}");
+    let sc = &read_to_string(stdin()).unwrap();
+    let (n1,n2) = part1(sc);
+    println!("PART1: {n1}");
+    println!("PART2: {n2}");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DATA:&str = "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))";
+
+    #[test]
+    fn _1() {
+        let sc = DATA;
+        let (n1,n2) = part1(sc);
+        assert_eq!(n1,161);
+        assert_eq!(n2,48);
+    }
 }
