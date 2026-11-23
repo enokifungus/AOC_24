@@ -31,7 +31,7 @@ const DATA:&str = "47|53
 97,13,75,29,47";
 
 fn main() {
-    let mut sc = DATA.lines();
+    //let mut sc = DATA.lines();
     let mut sc = stdin().lines().map(|i| i.unwrap());
     let pa:HashSet<(u8,u8)> = (0..).map(|_| sc.next().unwrap())
         .take_while(|s| !s.is_empty())
@@ -41,12 +41,25 @@ fn main() {
         })
         .collect();
     let mut n1 = 0;
+    let mut n2 = 0;
     for s in sc {
-        let v:Vec<u8> = s.split(',').map(|i| i.parse().unwrap()).collect();
-        let mut it = (1..v.len()).flat_map(|j| (0..j).map(move |i| (i,j)));
-        if it.all(|(i,j)| !pa.contains(&(v[j],v[i]))) {
+        let mut v:Vec<u8> = s.split(',').map(|i| i.parse().unwrap()).collect();
+        let mut ec = 0;
+        loop {
+            let it = (1..v.len()).flat_map(|j| (0..j).map(move |i| (i,j)));
+            if let Some((i,j)) = it.filter(|&(i,j)| pa.contains(&(v[j],v[i]))).next() {
+                v.swap(i,j);
+                ec += 1;
+            } else {
+                break;
+            }
+        }
+        if ec != 0 {
+            n2 += v[v.len()/2] as i32;
+        } else {
             n1 += v[v.len()/2] as i32;
         }
     }
     println!("{n1}");
+    println!("{n2}");
 }
