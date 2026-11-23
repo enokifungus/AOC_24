@@ -1,22 +1,58 @@
 use std::io::{stdin,read_to_string,BufRead,BufReader};
-use regex::Regex;
+
+fn match_bytes(bu:&[u8], pa:&[u8]) -> Option<usize> {
+    bu.starts_with(pa).then(|| pa.len())
+}
+
+fn match_num(bu:&[u8], tm:u8) -> (usize,Option<i32>) {
+    if let Some(i) = bu.iter().position(|x| !(b'0'<=*x && *x<=b'9')) {
+        if bu[i] == tm {
+            if let Ok(v) = str::from_utf8(&bu[..i]).unwrap().parse() {
+                (i + 1,Some(v))
+            } else {
+                (i + 1,None)
+            }
+        } else {
+            (i, None)
+        }
+    } else {
+        (bu.len(),None)
+    }
+}
 
 fn part1(sc: &str) -> (i32,i32) {
-    let re = Regex::new(r"mul\((\d+),(\d+)\)|(d)o\(\)|(d)on't\(\)").unwrap();
+    let mut sc = BufReader::new(sc.as_bytes());
+    let mut dd = true;
     let mut n1 = 0;
     let mut n2 = 0;
-    let mut b = true;
-    for m in re.captures_iter(sc) {
-        if m.get(3).is_some() {
-            b = true;
-        } else if m.get(4).is_some() {
-            b = false;
+    loop {
+        let bu = sc.fill_buf().unwrap();
+        if bu.is_empty() { break; }
+        let k = if let Some(k) = match_bytes(bu,b"do()") {
+            dd = true;
+            k
+        } else if let Some(k) = match_bytes(bu,b"don't()") {
+            dd = false;
+            k
+        } else if let Some(k1) = match_bytes(bu,b"mul(") {
+            let bu = &bu[k1..];
+            let (k2,o) = match_num(bu,b',');
+            if let Some(v1) = o {
+                let bu = &bu[k2..];
+                let (k3,o) = match_num(bu,b')');
+                if let Some(v2) = o {
+                    let v = v1*v2;
+                    n1 += v;
+                    if dd { n2 += v; }
+                }
+                k1 + k2 + k3
+            } else {
+                k1 + k2
+            }
         } else {
-            let x = m[1].parse::<i32>().unwrap() * m[2].parse::<i32>().unwrap();
-            n1 += x;
-            if b { n2 += x; }
-        }
-        
+            1
+        };
+        sc.consume(k);
     }
     (n1,n2)
 }
@@ -40,79 +76,5 @@ mod tests {
         let (n1,n2) = part1(sc);
         assert_eq!(n1,161);
         assert_eq!(n2,48);
-    }
-
-    fn get_num(bu:&[u8], tm:u8) -> Result<(i32,usize),usize> {
-        let o = bu.iter().position(|c| !(b'0'<=*c && *c<=b'9'));
-        if let Some(i) = o {
-            if bu[i] == tm {
-                Ok((str::from_utf8(&bu[..i]).unwrap().parse::<i32>().unwrap(),i + 1))
-            } else {
-                Err(i)
-            }
-        } else {
-            Err(bu.len())
-        }
-    }
-
-    #[derive(Debug)]
-    enum Mul {
-        Do,
-        Dont,
-        Product(i32),
-    }
-
-    struct ParseMul<T: BufRead> {
-        br: T,
-    }
-
-    impl<T: BufRead> Iterator for ParseMul<T> {
-        type Item = Mul;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            loop {
-                let bu = self.br.fill_buf().unwrap();
-                if bu.is_empty() {
-                    return None;
-                }
-                let mut r = None;
-                let k = if bu.starts_with(b"do()") {
-                    r = Some(Mul::Do);
-                    4
-                } else if bu.starts_with(b"don't()") {
-                    r = Some(Mul::Dont);
-                    7
-                } else if bu.starts_with(b"mul(") {
-                    let bu = &bu[4..];
-                    4 + match get_num(bu,b',') {
-                        Ok((v1,i)) => {
-                            let bu = &bu[i..];
-                            i + match get_num(bu,b')') {
-                                Ok((v2,j)) => {
-                                    r = Some(Mul::Product(v1*v2));
-                                    j
-                                }
-                                Err(j) => {
-                                    j
-                                }
-                            }
-                        }
-                        Err(i) => {
-                            i
-                        }
-                    }
-                } else {
-                    1
-                };
-                self.br.consume(k);
-                if r.is_some() { return r; }
-            }
-        }
-    }
-
-    #[test]
-    fn _2() {
-        let mut pm = ParseMul { br:BufReader::new(DATA.as_bytes()) };
-        for i in pm { println!("{i:?}"); }
     }
 }
